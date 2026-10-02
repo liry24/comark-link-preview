@@ -46,7 +46,10 @@ for (const renderer of ['html', 'react', 'vue', 'svelte', 'angular', 'nuxt']) {
     await expect(card.locator('.clp-panel')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(card.locator('.clp-panel')).not.toBeVisible();
-    await page.locator('[data-pause-metadata]').uncheck();
+    await page.locator('[data-pause-metadata]').evaluate((element) => {
+      (element as HTMLInputElement).checked = false;
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
     await expect(card.locator('.clp-title').first()).toHaveText('A title arrived before the image');
     expect((await page.locator('[data-source]').inputValue()).length).toBe(length);
     if (renderer !== 'angular')
@@ -55,6 +58,7 @@ for (const renderer of ['html', 'react', 'vue', 'svelte', 'angular', 'nuxt']) {
     await button.click();
     const image = card.locator('.clp-panel img.clp-image');
     await expect(image).toBeVisible();
+    if (renderer !== 'angular') await expect(button).toBeFocused();
     await expect
       .poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth))
       .toBeGreaterThan(0);

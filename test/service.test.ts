@@ -81,3 +81,34 @@ it('failed/partial snapshots are not cached and logs are bounded codes only', as
   expect(logs).toEqual([{ code: 'network' }]);
   service.dispose();
 });
+it('one document byte limit does not fail another subscriber sharing its request', async () => {
+  let deliver: (() => void) | undefined;
+  const service = createPreviewService({
+    resolve: async (_url, { consumeBytes }) => {
+      await new Promise<void>((resolve) => {
+        deliver = () => {
+          consumeBytes?.(10);
+          resolve();
+        };
+      });
+      return { title: 'Shared success' };
+    },
+  });
+  const one: PreviewSnapshot[] = [];
+  const two: PreviewSnapshot[] = [];
+  const limited = service.subscribe(
+    'https://example.com',
+    (value) => one.push(value),
+    () => {
+      throw Error('budget');
+    },
+  );
+  const permitted = service.subscribe('https://example.com', (value) => two.push(value));
+  await vi.waitFor(() => expect(deliver).toBeTypeOf('function'));
+  deliver?.();
+  await vi.waitFor(() => expect(two.at(-1)?.state).toBe('ready'));
+  expect(one.at(-1)?.state).toBe('failed');
+  limited.unsubscribe();
+  permitted.unsubscribe();
+  service.dispose();
+});

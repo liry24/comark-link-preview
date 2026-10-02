@@ -19,7 +19,7 @@ jobs:
       - run: bun check
       - run: bun run pack:check
       - run: node node_modules/publint/src/cli.js --pack npm
-      - run: node node_modules/@arethetypeswrong/cli/dist/index.js --profile esm-only --exclude-entrypoints ./style.css artifacts/comark-link-preview-0.0.0.tgz
+      - run: node node_modules/@arethetypeswrong/cli/dist/index.js artifacts/comark-link-preview-0.0.0.tgz --profile esm-only --exclude-entrypoints ./style.css
       - run: node scripts/measure.mjs
       - uses: actions/upload-artifact@v4
         with:

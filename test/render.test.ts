@@ -80,3 +80,32 @@ it('Workers uses fresh public fetch options, manual redirects and no caller head
     globalThis.fetch = original;
   }
 });
+it('shows fetched hostile markup only as text and emits no user terminal controls', async () => {
+  const controller = createPreviewController({
+    documentId: 'text',
+    resolver: { resolve: async () => ({ title: '<script>alert(1)</script>' }) },
+  });
+  await controller.update('Before :inline-preview{href="https://example.com"} after\u001b[31m\u0007');
+  await controller.end();
+  await vi.waitFor(() => expect(controller.getSnapshot().targets[0]?.snapshot.state).toBe('ready'));
+  const html = await renderPreviewHtml(controller.getSnapshot());
+  expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+  expect(html).not.toContain('<script>');
+  const ansi = await renderPreviewAnsi(controller.getSnapshot(), { colors: false });
+  expect(ansi).toContain('Before ');
+  expect(ansi).toContain(' after');
+  expect(ansi).not.toContain('\u001b');
+  expect(ansi).not.toContain('\u0007');
+  controller.dispose();
+});
+it('a preview nested inside a Markdown link never creates nested interactive elements', async () => {
+  const c = createPreviewController({
+    documentId: 'nested-link',
+    resolver: { resolve: async () => ({ title: 'Inner title' }) },
+  });
+  await c.update('[See :inline-preview{href="https://example.com"}](https://outer.example)');
+  const html = await renderPreviewHtml(c.getSnapshot());
+  expect((html.match(/<a\b/gu) ?? []).length).toBe(1);
+  expect(html).not.toContain('<button');
+  c.dispose();
+});

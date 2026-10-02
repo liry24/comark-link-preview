@@ -139,3 +139,18 @@ it('chooses first safe media and falls back from invalid OG to Twitter image', (
     images: [{ url: 'https://example.com/twitter.png' }],
   });
 });
+it('a malformed UTF-8 response fails rather than caching partial metadata', async () => {
+  const resolve = createResolver(async () => ({
+    status: 200,
+    headers: new Headers({ 'content-type': 'text/html' }),
+    body: new ReadableStream({
+      start(c) {
+        c.enqueue(new Uint8Array([0xc3, 0x28]));
+        c.close();
+      },
+    }),
+  }));
+  await expect(
+    resolve('https://example.com', { signal: new AbortController().signal, emit() {} }),
+  ).rejects.toMatchObject({ code: 'encoding' });
+});
