@@ -76,6 +76,12 @@ for (const renderer of ['html', 'react', 'vue', 'svelte', 'angular', 'nuxt']) {
       .toBeGreaterThan(0);
     await expect(button).toBeFocused();
     await page.keyboard.press('Escape');
+    await page.locator('h1').click();
+    await card.locator('a.clp-link').hover();
+    await expect(card.locator('.clp-panel')).toBeVisible();
+    await card.locator('.clp-panel').hover();
+    await expect(card.locator('.clp-panel')).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(output.locator('a[href="https://example.test/no-image"] img.clp-image')).toHaveCount(0);
     await expect(
       output
@@ -148,3 +154,45 @@ for (const renderer of ['html', 'react', 'vue', 'svelte', 'angular', 'nuxt']) {
     expect(externalRequests).toEqual([]);
   });
 }
+
+test('static repeated documents open their own native popover without browser initialization', async ({
+  page,
+}) => {
+  const { createHtmlRenderer } = await import('@comark/html');
+  const { linkPreview } = await import('comark-link-preview');
+  const render = createHtmlRenderer({
+    plugins: [
+      linkPreview({
+        fetch: async () =>
+          new Response('<title>Repeated document</title>', { headers: { 'content-type': 'text/html' } }),
+      }),
+    ],
+  });
+  const source = 'See :inline-preview{href="https://example.com/article"}';
+  await page.setContent(
+    `<section>${await render(source)}</section><section>${await render(source)}</section>`,
+  );
+  const sections = page.locator('section');
+  await sections.nth(1).locator('button').click();
+  await expect(sections.nth(1).locator('[popover]')).toBeVisible();
+  await expect(sections.nth(0).locator('[popover]')).not.toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sections.nth(1).locator('[popover]')).not.toBeVisible();
+});
+
+test('touch opens and closes the preview without navigating the primary link', async ({ browser }) => {
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    await page.goto('http://127.0.0.1:5173/html/');
+    const card = page.locator('[data-preview-output] .clp-inline').first();
+    await expect(card.locator('a.clp-link')).toHaveAttribute('href', 'https://example.test/article');
+    await card.locator('button').tap();
+    await expect(card.locator('.clp-panel')).toBeVisible();
+    await card.locator('button').tap();
+    await expect(card.locator('.clp-panel')).not.toBeVisible();
+    expect(page.url()).toBe('http://127.0.0.1:5173/html/');
+  } finally {
+    await context.close();
+  }
+});

@@ -359,3 +359,21 @@ it('shared storage respects namespaces and expiry', async () => {
     now.mockRestore();
   }
 });
+
+it('keeps repeated documents separate and preserves IDs through SSR document serialization', async () => {
+  const fetch: typeof globalThis.fetch = async () => response('<title>Repeated preview</title>');
+  const plugin = linkPreview({ fetch });
+  const first = await parse(inline(), { plugins: [plugin] });
+  const second = await parse(inline(), { plugins: [plugin] });
+  const firstHtml = await renderHtmlFromDocument(first);
+  const secondHtml = await renderHtmlFromDocument(second);
+  const firstTarget = /popovertarget="([^"]+)"/u.exec(firstHtml)?.[1];
+  const secondTarget = /popovertarget="([^"]+)"/u.exec(secondHtml)?.[1];
+  expect(firstTarget).toBeTruthy();
+  expect(secondTarget).toBeTruthy();
+  expect(secondTarget).not.toBe(firstTarget);
+  expect(await renderHtmlFromDocument(JSON.parse(JSON.stringify(first)))).toBe(firstHtml);
+  const render = () =>
+    createHtmlRenderer({ plugins: [linkPreview({ fetch, idPrefix: 'article-one' })] })(inline());
+  expect(await render()).toBe(await render());
+});

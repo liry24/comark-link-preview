@@ -14,6 +14,8 @@ export interface LinkPreviewOptions extends FetchResolverOptions, CacheOptions {
   logger?: PreviewLogger;
   maxLogEvents?: number;
   mediaUrl?: MediaUrlResolver;
+  /** Stable, document-unique namespace when server and client parse independently. */
+  idPrefix?: string;
   /** Text-oriented output for terminal renderers. */
   output?: 'web' | 'ansi';
 }
@@ -26,6 +28,8 @@ export function linkPreview(options: LinkPreviewOptions = {}): ComarkPlugin {
   const maxBytes = options.maxDocumentBytes ?? 4_000_000;
   if (!Number.isSafeInteger(maxUrls) || maxUrls < 1 || !Number.isSafeInteger(maxBytes) || maxBytes < 1)
     throw new TypeError('Invalid document limits');
+  if (options.idPrefix !== undefined && !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/u.test(options.idPrefix))
+    throw new TypeError('idPrefix must be a short HTML identifier');
   const service = createPreviewService({ ...options, ...createFetchResolver(options) });
   return {
     name: 'link-preview',
@@ -58,13 +62,25 @@ export function linkPreview(options: LinkPreviewOptions = {}): ComarkPlugin {
         requests.set(identity, promise);
         return promise;
       };
-      // Stable across server/client parses of the same Markdown; no ambient document context.
-      let hash = 2166136261;
-      for (const character of state.markdown) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+      const prefix = options.idPrefix ?? `clp-${crypto.randomUUID()}`;
+      const used = new Set<string>();
+      const collectIds = (nodes: Node[]) => {
+        for (const node of nodes) {
+          if (typeof node === 'string' || node[0] === null) continue;
+          if (typeof node[1]['data-clp-id'] === 'string') used.add(node[1]['data-clp-id']);
+          const [, , ...children] = node;
+          collectIds(children);
+        }
+      };
+      collectIds(state.tree.nodes);
       const walk = async (node: Node, interactive = false): Promise<Node> => {
         if (typeof node === 'string' || node[0] === null) return node;
         if (node[0] === 'inline-preview' || node[0] === 'preview-card') {
-          const id = `clp-${(hash >>> 0).toString(36)}-${count++}`;
+          let id: string;
+          do {
+            id = `${prefix}-${count++}`;
+          } while (used.has(id));
+          used.add(id);
           const href = typeof node[1].href === 'string' ? safeUrl(node[1].href)?.href : undefined;
           const title = typeof node[1].title === 'string' ? safeText(node[1].title) : undefined;
           const snapshot = href && !interactive ? await read(href) : failed;

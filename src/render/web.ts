@@ -154,7 +154,7 @@ export function previewNode(target: PreviewTarget, resolve?: MediaUrlResolver): 
       {
         id: target.id + '-panel',
         class: 'clp-panel clp-card',
-        popover: 'manual',
+        popover: 'auto',
         role: 'group',
         'aria-label': 'Link preview',
       },

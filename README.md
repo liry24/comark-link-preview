@@ -36,6 +36,7 @@ Metadata is fetched before parsing completes. An author title takes priority; fa
 - `limits`: `deadlineMs` (8,000), `maxBytes` (512,000), `maxRedirects` (5), `maxFieldLength` (2,048), `maxImages` (8).
 - `concurrency` (4), `maxUrls` (100), `maxDocumentBytes` (4,000,000): request and document limits.
 - `mediaUrl(url, kind)`: replace an image or favicon URL with HTTPS or a same-origin `/path`; return `undefined` to omit it. Direct images use `no-referrer`.
+- `idPrefix`: optional document-unique HTML identifier for independently parsed server/client output. Otherwise IDs are generated per parse; hydrate the same completed document returned by the server.
 - `output: 'ansi'`: readable link/card text for Comark's terminal renderer. Default output is web markup.
 - `logger(event)`: optional bounded diagnostics containing a code, without URLs or remote content.
 

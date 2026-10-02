@@ -32,5 +32,7 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <div ref="controls" />
-  <section data-preview-output><MarkdownDocument :value="view" /></section>
+  <section data-preview-output>
+    <Suspense><MarkdownDocument :value="view" /></Suspense>
+  </section>
 </template>

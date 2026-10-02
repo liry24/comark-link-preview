@@ -4,6 +4,8 @@ import { createFixture, fixtureSource, sleep } from '../shared/fixture.ts';
 
 const fixture = createFixture(100);
 const renderAnsi = createAnsiRenderer({
+  // eslint-disable-next-line typescript/no-unnecessary-type-conversion -- Node omits isTTY on a pipe despite its declared boolean type.
+  colors: Boolean(process.stdout.isTTY),
   plugins: [
     linkPreview({
       allowedUrls: ['https://example.test/*'],
