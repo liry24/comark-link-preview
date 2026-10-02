@@ -1,16 +1,13 @@
 /* eslint-disable no-control-regex -- Deliberate control rejection for explicit relative media paths. */
-import { children, sourceStart } from '../comark/tree.ts';
-import type { ElementNode, MarkdownDocument, Node } from 'comark';
+import type { ElementNode, Node } from 'comark';
 import type { PreviewSnapshot } from '../core/types.ts';
 import { safeText, safeUrl } from '../core/url.ts';
 
 export interface PreviewTarget {
   id: string;
-  start: number;
   kind: 'inline-preview' | 'preview-card';
   title?: string;
   href?: string;
-  confirmed: boolean;
   snapshot: PreviewSnapshot;
 }
 export type MediaUrlResolver = (url: string, kind: 'image' | 'favicon') => string | undefined;
@@ -19,7 +16,7 @@ const element = (tag: string, attrs: Record<string, unknown>, ...content: Node[]
   attrs,
   ...content,
 ];
-const icon = (): ElementNode => element('span', { class: 'clp-icon', 'aria-hidden': 'true' }, '↗');
+const icon = (): ElementNode => element('span', { class: 'clp-icon' });
 function media(
   url: string | undefined,
   kind: 'image' | 'favicon',
@@ -94,16 +91,14 @@ function cardContent(target: PreviewTarget, resolve?: MediaUrlResolver): Node[] 
   ];
 }
 export function previewNode(target: PreviewTarget, resolve?: MediaUrlResolver): ElementNode {
-  const href = target.confirmed && target.href ? safeUrl(target.href)?.href : undefined;
+  const href = target.href ? safeUrl(target.href)?.href : undefined;
   const title = safeText(target.title) ?? safeText(target.snapshot.metadata.title) ?? href ?? 'Link preview';
   const empty = target.snapshot.state === 'ready' && Object.keys(target.snapshot.metadata).length === 0;
   if (target.snapshot.state === 'failed' || empty)
     return href ? element('a', { href }, safeText(target.title) ?? href) : element('span', {}, title);
-  const pending = target.snapshot.state === 'pending';
   const root = {
     class: 'clp ' + (target.kind === 'inline-preview' ? 'clp-inline' : 'clp-block'),
     'data-clp-id': target.id,
-    'aria-busy': pending ? 'true' : 'false',
   };
   if (target.kind === 'preview-card') {
     return element(
@@ -150,6 +145,7 @@ export function previewNode(target: PreviewTarget, resolve?: MediaUrlResolver): 
         'aria-label': 'Show link preview',
         'aria-controls': target.id + '-panel',
         'data-clp-toggle': '',
+        popovertarget: target.id + '-panel',
       },
       '⌄',
     ),
@@ -165,50 +161,4 @@ export function previewNode(target: PreviewTarget, resolve?: MediaUrlResolver): 
       ...cardContent(target, resolve),
     ),
   );
-}
-
-/** The canonical document is never modified or used as the display tree. */
-export function renderPreviewDocument(
-  document: MarkdownDocument,
-  targets: readonly PreviewTarget[],
-  resolve?: MediaUrlResolver,
-): MarkdownDocument {
-  const byStart = new Map(targets.map((target) => [target.start, target]));
-  const walk = (node: Node, interactive = false): Node => {
-    if (typeof node === 'string' || node[0] === null) return node;
-    const start = sourceStart(node);
-    if (node[0] === 'inline-preview' || node[0] === 'preview-card') {
-      const target = start === undefined ? undefined : byStart.get(start);
-      if (interactive)
-        return element(
-          'span',
-          {},
-          safeText(target?.title) ??
-            safeText(target?.snapshot.metadata.title) ??
-            safeText(target?.href) ??
-            'Link preview',
-        );
-      return previewNode(
-        target ?? {
-          id: 'unconfirmed',
-          start: -1,
-          kind: node[0],
-          confirmed: false,
-          snapshot: { state: 'pending', metadata: {} },
-        },
-        resolve,
-      );
-    }
-    return [
-      node[0],
-      { ...node[1] },
-      ...children(node).map((child) => walk(child, interactive || ['a', 'button'].includes(node[0]))),
-    ];
-  };
-  return {
-    ...document,
-    nodes: document.nodes.map((node) =>
-      Array.isArray(node) && node[0] === 'inline-preview' ? element('p', {}, walk(node)) : walk(node),
-    ),
-  };
 }

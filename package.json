@@ -2,7 +2,7 @@
   "name": "comark-link-preview",
   "version": "0.0.0",
   "private": true,
-  "description": "Explicit, streaming link previews for Comark",
+  "description": "Explicit link previews for Comark",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,27 +22,7 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./browser": {
-      "types": "./dist/browser.d.ts",
-      "import": "./dist/browser.js"
-    },
-    "./style.css": "./dist/style.css",
-    "./html": {
-      "types": "./dist/html.d.ts",
-      "import": "./dist/html.js"
-    },
-    "./ansi": {
-      "types": "./dist/ansi.d.ts",
-      "import": "./dist/ansi.js"
-    },
-    "./workers": {
-      "types": "./dist/workers.d.ts",
-      "import": "./dist/workers.js"
-    },
-    "./fetch": {
-      "types": "./dist/fetch.d.ts",
-      "import": "./dist/fetch.js"
-    }
+    "./style.css": "./dist/style.css"
   },
   "scripts": {
     "build": "node node_modules/tsdown/dist/run.mjs",
@@ -64,21 +44,22 @@
     "build:playground:nuxt": "node node_modules/nuxt/bin/nuxt.mjs build playground/nuxt",
     "pack:check": "node scripts/pack.mjs",
     "test:consumer": "node scripts/consumer.mjs",
-    "test:package": "node scripts/package-check.mjs"
+    "test:package": "node scripts/package-check.mjs",
+    "test:workers": "node scripts/workers.mjs"
   },
   "dependencies": {
     "htmlparser2": "^12.0.0",
-    "unstorage": "^1.17.0"
+    "unstorage": "^1.17.5"
   },
   "devDependencies": {
-    "@angular/build": "^21.2.0",
-    "@angular/cli": "^21.2.0",
-    "@angular/common": "^21.2.0",
-    "@angular/compiler": "^21.2.0",
-    "@angular/compiler-cli": "^21.2.0",
-    "@angular/core": "^21.2.0",
-    "@angular/platform-browser": "^21.2.0",
-    "@angular/platform-server": "^21.2.0",
+    "@angular/build": "21.2.24",
+    "@angular/cli": "21.2.24",
+    "@angular/common": "21.2.25",
+    "@angular/compiler": "21.2.25",
+    "@angular/compiler-cli": "21.2.25",
+    "@angular/core": "21.2.25",
+    "@angular/platform-browser": "21.2.25",
+    "@angular/platform-server": "21.2.25",
     "@arethetypeswrong/cli": "^0.18.5",
     "@comark/angular": "^0.7.0",
     "@comark/ansi": "^0.7.0",
@@ -93,7 +74,9 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitejs/plugin-vue": "^6.0.9",
+    "esbuild": "0.28.2",
     "jsdom": "^30.1.1",
+    "miniflare": "4.20260730.0",
     "nuxt": "^4.5.2",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.86.0",
@@ -105,23 +88,13 @@
     "svelte": "^5.57.1",
     "taze": "^21.3.0",
     "tsdown": "^0.23.0",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.3",
     "vite": "^8.3.2",
     "vitest": "^5.0.3",
     "vue": "^3.5.43"
   },
   "peerDependencies": {
-    "@comark/ansi": "^0.7.0",
-    "@comark/html": "^0.7.0",
     "comark": "^0.7.0"
-  },
-  "peerDependenciesMeta": {
-    "@comark/ansi": {
-      "optional": true
-    },
-    "@comark/html": {
-      "optional": true
-    }
   },
   "engines": {
     "node": ">=24.0.0"

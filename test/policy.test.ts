@@ -1,47 +1,19 @@
-import { afterAll, beforeAll, expect, it, vi } from 'vitest';
-import { createServer, type Server } from 'node:http';
-import { once } from 'node:events';
+import { expect, it, vi } from 'vitest';
+import { createHtmlRenderer } from '@comark/html';
 import { createStorage } from 'unstorage';
+import { linkPreview } from '../src/index.ts';
 import { createUrlPolicy } from '../src/core/policy.ts';
-import { createPreviewService } from '../src/core/service.ts';
-import { createFetchResolver } from '../src/fetch.ts';
-import type { PreviewSnapshot } from '../src/core/types.ts';
-let server: Server;
-let origin: string;
-const hits: string[] = [];
-const headers: unknown[] = [];
-beforeAll(async () => {
-  server = createServer((req, res) => {
-    hits.push(req.url ?? '');
-    headers.push(req.headers);
-    if (req.url === '/start') {
-      res.writeHead(302, { location: '/final' });
-      res.end();
-      return;
-    }
-    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end('<head><title>Local fixture</title><meta property="og:title" content="Final metadata"></head>');
-  });
-  server.listen(0, '127.0.0.1');
-  await once(server, 'listening');
-  const address = server.address();
-  if (!address || typeof address === 'string') throw Error('Missing TCP port');
-  origin = `http://127.0.0.1:${address.port}`;
-});
-afterAll(async () => {
-  server.closeAllConnections();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-});
-async function settled(service: ReturnType<typeof createPreviewService>, url: string) {
-  const snapshots: PreviewSnapshot[] = [];
-  const sub = service.subscribe(url, (value) => snapshots.push(value));
-  await vi.waitFor(() => expect(snapshots.at(-1)?.state).not.toBe('pending'));
-  sub.unsubscribe();
-  return snapshots.at(-1)!;
+
+function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
+  return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 }
+
+const source = ':inline-preview{href="https://example.com/start"}';
+const response = () =>
+  new Response('<head><title>Final metadata</title></head>', { headers: { 'content-type': 'text/html' } });
+
 it('native URLPattern patterns are optional, deny-empty, normalized and composed with callback', async () => {
-  const signal = new AbortController().signal;
-  const context = { kind: 'initial' as const, signal };
+  const context = { kind: 'initial' as const, signal: new AbortController().signal };
   await expect(createUrlPolicy()(new URL('http://localhost/'), context)).resolves.toBeUndefined();
   await expect(
     createUrlPolicy({ allowedUrls: [] })(new URL('https://example.com/'), context),
@@ -56,80 +28,111 @@ it('native URLPattern patterns are optional, deny-empty, normalized and composed
     'https://sub.example.com.evil/',
     'http://sub.example.com/',
     'https://sub.example.com/private',
-  ])
+  ]) {
     await expect(policy(new URL(url), context)).rejects.toMatchObject({ code: 'denied' });
+  }
 });
-it('invalid pattern configuration throws synchronously', () => {
-  expect(() => createUrlPolicy({ allowedUrls: ['bad pattern'] })).toThrow(/pattern|URL/iu);
+
+it('invalid policy configuration fails synchronously', () => {
+  expect(() => linkPreview({ allowedUrls: ['bad pattern'] })).toThrow(/pattern|URL/iu);
 });
-it('Native fetch follows only authorized redirects and policy mutation cannot rewrite requests', async () => {
-  const calls: string[] = [];
-  const offset = hits.length;
-  const service = createPreviewService(
-    createFetchResolver({
-      authorize(url, context) {
-        calls.push(`${context.kind}:${url.pathname}`);
-        url.pathname = '/mutated';
-        return true;
-      },
-    }),
+
+it('flat policy options deny the initial URL before fetch', async () => {
+  for (const policy of [{ allowedUrls: [] }, { authorize: () => false }]) {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => response());
+    const html = await createHtmlRenderer({ plugins: [linkPreview({ fetch, ...policy })] })(source);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(html).toContain('<a href="https://example.com/start">');
+    expect(html).not.toContain('Final metadata');
+  }
+});
+
+it('fetches with fresh anonymous GET options and authorizes every manual redirect', async () => {
+  const authorizations: string[] = [];
+  const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
+    new URL(requestUrl(input)).pathname === '/start'
+      ? new Response(null, { status: 302, headers: { location: '/final' } })
+      : response(),
   );
-  expect((await settled(service, origin + '/start')).metadata.title).toBe('Final metadata');
-  expect(hits.slice(offset)).toEqual(['/start', '/final']);
-  expect(calls).toEqual(['initial:/start', 'redirect:/final']);
-  expect(headers.at(-1)).not.toHaveProperty('authorization');
-  expect(headers.at(-1)).not.toHaveProperty('cookie');
-  service.dispose();
+  const html = await createHtmlRenderer({
+    plugins: [
+      linkPreview({
+        fetch,
+        authorize(url, context) {
+          authorizations.push(`${context.kind}:${url.pathname}`);
+          url.pathname = '/must-not-rewrite';
+          return true;
+        },
+      }),
+    ],
+  })(source);
+  expect(html).toContain('Final metadata');
+  expect(fetch.mock.calls.map(([url]) => requestUrl(url))).toEqual([
+    'https://example.com/start',
+    'https://example.com/final',
+  ]);
+  expect(authorizations).toEqual(['initial:/start', 'redirect:/final']);
+  for (const [, init] of fetch.mock.calls) {
+    expect(init).toMatchObject({
+      method: 'GET',
+      redirect: 'manual',
+      credentials: 'omit',
+      headers: { accept: 'text/html' },
+    });
+    expect(new Headers(init?.headers).has('authorization')).toBe(false);
+    expect(new Headers(init?.headers).has('cookie')).toBe(false);
+  }
 });
-it('denies redirect before network and rechecks a cached redirect chain under current policy', async () => {
-  const storage = createStorage();
+
+it('denies a redirect before its network request and reauthorizes cached redirect chains', async () => {
   let permitFinal = true;
-  const provider = createFetchResolver({ authorize: (url) => permitFinal || url.pathname !== '/final' });
-  const service = createPreviewService({ ...provider, storage, namespace: 'tenant:resolver:policy-v1' });
-  expect((await settled(service, origin + '/start')).state).toBe('ready');
-  const before = hits.length;
+  const storage = createStorage();
+  const fetch = vi.fn<typeof globalThis.fetch>(async (input) =>
+    requestUrl(input).endsWith('/start')
+      ? new Response(null, { status: 302, headers: { location: '/final' } })
+      : response(),
+  );
+  const render = createHtmlRenderer({
+    plugins: [
+      linkPreview({
+        fetch,
+        storage,
+        namespace: 'policy-test',
+        authorize: (url) => permitFinal || url.pathname !== '/final',
+      }),
+    ],
+  });
+  expect(await render(source)).toContain('Final metadata');
   permitFinal = false;
-  expect((await settled(service, origin + '/start')).state).toBe('failed');
-  expect(hits.length).toBe(before);
-  service.dispose();
-  const deny = createPreviewService(createFetchResolver({ allowedUrls: [origin + '/start'] }));
-  const offset = hits.length;
-  expect((await settled(deny, origin + '/start')).state).toBe('failed');
-  expect(hits.slice(offset)).toEqual(['/start']);
-  deny.dispose();
+  expect(await render(source)).not.toContain('Final metadata');
+  expect(fetch).toHaveBeenCalledTimes(2);
+  const deniedFetch = vi.fn<typeof globalThis.fetch>(
+    async () => new Response(null, { status: 302, headers: { location: '/final' } }),
+  );
+  const denied = await createHtmlRenderer({
+    plugins: [linkPreview({ fetch: deniedFetch, allowedUrls: ['https://example.com/start'] })],
+  })(source);
+  expect(deniedFetch).toHaveBeenCalledTimes(1);
+  expect(denied).not.toContain('Final metadata');
 });
-it('bounds asynchronous authorization and never fetches after cancellation', async () => {
-  let requests = 0;
-  const service = createPreviewService({
-    deadlineMs: 10,
-    policy: { authorize: () => new Promise(() => {}) },
-    resolve: async () => {
-      requests++;
-      return {};
-    },
-  });
-  expect((await settled(service, origin + '/start')).state).toBe('failed');
-  expect(requests).toBe(0);
-  service.dispose();
+
+it('bounds an asynchronous authorization that never settles, without fetching afterward', async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => response());
+  const html = await createHtmlRenderer({
+    plugins: [
+      linkPreview({ fetch, limits: { deadlineMs: 25 }, authorize: () => new Promise<boolean>(() => {}) }),
+    ],
+  })(source);
+  expect(html).toContain('<a href="https://example.com/start">');
+  expect(fetch).not.toHaveBeenCalled();
 });
-it('a new subscriber reauthorizes completed data even while an older view remains mounted', async () => {
-  let allow = true;
-  let fetched = 0;
-  const service = createPreviewService({
-    policy: { authorize: () => allow },
-    resolve: async () => {
-      fetched++;
-      return { title: 'Visible' };
-    },
-  });
-  let first: PreviewSnapshot | undefined;
-  const mounted = service.subscribe(origin + '/final', (snapshot) => {
-    first = snapshot;
-  });
-  await vi.waitFor(() => expect(first?.state).toBe('ready'));
-  allow = false;
-  expect((await settled(service, origin + '/final')).state).toBe('failed');
-  expect(fetched).toBe(1);
-  mounted.unsubscribe();
-  service.dispose();
+
+it('rechecks current authorization for every parse even when metadata is cached', async () => {
+  let allowed = true;
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => response());
+  const render = createHtmlRenderer({ plugins: [linkPreview({ fetch, authorize: () => allowed })] });
+  expect(await render(source)).toContain('Final metadata');
+  allowed = false;
+  expect(await render(source)).not.toContain('Final metadata');
+  expect(fetch).toHaveBeenCalledTimes(1);
 });

@@ -9,8 +9,9 @@
   <body>
     <h1>Comark link previews</h1>
     <p>
-      Independent renderers share deterministic source chunks, delayed metadata, and local images. Nothing
-      fetches the example.test links.
+      Each stock Comark renderer uses plugins: [linkPreview(options)]. The async plugin waits for metadata and
+      returns complete HTML nodes. Deterministic source chunks, delays, errors, edits, and cancellation run
+      entirely against local fixtures; example.test is never contacted.
     </p>
     <ul>
       <li><a href="/react/">React</a></li>

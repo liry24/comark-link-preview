@@ -1,31 +1,36 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, shallowRef } from 'vue';
 import { MarkdownDocument } from '@comark/vue';
-import { initializePreviews } from 'comark-link-preview/browser';
-import { createDemo, fixtureSource } from '../../shared/fixture.ts';
+import { parseMarkdown, type MarkdownDocument as ComarkDocument } from 'comark';
+import { linkPreview } from 'comark-link-preview';
+import { createFixture, localMedia } from '../../shared/fixture.ts';
 import { mountControls } from '../../shared/controls.ts';
-const { controller, fixture } = createDemo('vue-fixture', location.origin);
-const view = shallowRef(controller.getSnapshot());
+const fixture = createFixture();
+const options = {
+  allowedUrls: ['https://example.test/*'],
+  fetch: fixture.fetch,
+  mediaUrl: localMedia,
+  limits: { deadlineMs: 10_000 },
+};
+let plugin = linkPreview(options);
+let revision = 0;
+const view = shallowRef<ComarkDocument>({ nodes: [], meta: {}, frontmatter: {} });
 const controls = ref<HTMLElement>();
-const output = ref<HTMLElement>();
-const unsubscribe = controller.subscribe((next) => {
-  view.value = next;
-});
 let disposeControls = () => {};
-let disposePreviews = () => {};
 onMounted(() => {
-  disposeControls = mountControls(controls.value!, controller, fixture);
-  disposePreviews = initializePreviews(output.value!);
-  void controller.update(fixtureSource, { ended: true });
+  disposeControls = mountControls(controls.value!, fixture, async (source, reset) => {
+    const current = ++revision;
+    if (reset) plugin = linkPreview(options);
+    const document = await parseMarkdown(source, { plugins: [plugin] });
+    if (current === revision) view.value = document;
+  });
 });
 onBeforeUnmount(() => {
-  disposePreviews();
+  revision++;
   disposeControls();
-  unsubscribe();
-  controller.dispose();
 });
 </script>
 <template>
   <div ref="controls" />
-  <section ref="output" data-preview-output><MarkdownDocument :value="view.value" /></section>
+  <section data-preview-output><MarkdownDocument :value="view" /></section>
 </template>

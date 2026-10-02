@@ -1,29 +1,23 @@
-import { connectPreviewAnsi } from 'comark-link-preview/ansi';
-import { createDemo, fixtureSource, sleep } from '../shared/fixture.ts';
-const { controller, fixture } = createDemo('cli-fixture', 'https://example.test');
-fixture.settings.fieldDelayMs = 100;
-const disconnect = connectPreviewAnsi(controller, process.stdout);
-try {
-  const signal = new AbortController().signal;
-  for (let offset = 0; offset < fixtureSource.length; offset += 40) {
-    await controller.append(fixtureSource.slice(offset, offset + 40));
-    await sleep(10, signal);
-  }
-  await controller.end();
-  await new Promise<void>((resolve) => {
-    const unsubscribe = controller.subscribe((view) => {
-      if (
-        view.ended &&
-        view.targets.every((target) => !target.confirmed || target.snapshot.state !== 'pending')
-      )
-        queueMicrotask(() => {
-          unsubscribe();
-          resolve();
-        });
-    });
-  });
-  await disconnect.flush();
-} finally {
-  disconnect.dispose();
-  controller.dispose();
+import { createAnsiRenderer } from '@comark/ansi';
+import { linkPreview } from 'comark-link-preview';
+import { createFixture, fixtureSource, sleep } from '../shared/fixture.ts';
+
+const fixture = createFixture(100);
+const renderAnsi = createAnsiRenderer({
+  plugins: [
+    linkPreview({
+      allowedUrls: ['https://example.test/*'],
+      fetch: fixture.fetch,
+      limits: { deadlineMs: 10_000 },
+      output: 'ansi',
+    }),
+  ],
+});
+const signal = new AbortController().signal;
+let source = '';
+for (let offset = 0; offset < fixtureSource.length; offset += 40) {
+  source += fixtureSource.slice(offset, offset + 40);
+  await sleep(10, signal);
 }
+// A redirected stream receives one complete, readable document without redraw codes.
+process.stdout.write(await renderAnsi(source));

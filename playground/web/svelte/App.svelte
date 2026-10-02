@@ -1,20 +1,30 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { MarkdownDocument } from '@comark/svelte';
-  import { initializePreviews } from 'comark-link-preview/browser';
-  import { createDemo, fixtureSource } from '../../shared/fixture.ts';
+  import { parseMarkdown, type MarkdownDocument as ComarkDocument } from 'comark';
+  import { linkPreview } from 'comark-link-preview';
+  import { createFixture, localMedia } from '../../shared/fixture.ts';
   import { mountControls } from '../../shared/controls.ts';
-  const { controller, fixture } = createDemo('svelte-fixture', location.origin);
-  let view = $state(controller.getSnapshot());
+  let view = $state<ComarkDocument>({ nodes: [], meta: {}, frontmatter: {} });
   let controls: HTMLDivElement;
-  let output: HTMLElement;
   onMount(() => {
-    const unsubscribe = controller.subscribe(next => { view = next; });
-    const disposeControls = mountControls(controls, controller, fixture);
-    const disposePreviews = initializePreviews(output);
-    void controller.update(fixtureSource, { ended: true });
-    return () => { disposePreviews(); disposeControls(); unsubscribe(); controller.dispose(); };
+    const fixture = createFixture();
+    const options = {
+      allowedUrls: ['https://example.test/*'],
+      fetch: fixture.fetch,
+      mediaUrl: localMedia,
+      limits: { deadlineMs: 10_000 },
+    };
+    let plugin = linkPreview(options);
+    let revision = 0;
+    const disposeControls = mountControls(controls, fixture, async (source, reset) => {
+      const current = ++revision;
+      if (reset) plugin = linkPreview(options);
+      const document = await parseMarkdown(source, { plugins: [plugin] });
+      if (current === revision) view = document;
+    });
+    return () => { revision++; disposeControls(); };
   });
 </script>
 <div bind:this={controls}></div>
-<section bind:this={output} data-preview-output><MarkdownDocument value={view.value} /></section>
+<section data-preview-output><MarkdownDocument value={view} /></section>

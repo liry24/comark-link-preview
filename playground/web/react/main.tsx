@@ -1,33 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MarkdownDocument } from '@comark/react';
-import { initializePreviews } from 'comark-link-preview/browser';
-import { createDemo, fixtureSource } from '../../shared/fixture.ts';
+import { parseMarkdown, type MarkdownDocument as ComarkDocument } from 'comark';
+import { linkPreview } from 'comark-link-preview';
+import { createFixture, localMedia } from '../../shared/fixture.ts';
 import { mountControls } from '../../shared/controls.ts';
 import '../../shared/page.css';
 
-const demo = createDemo('react-fixture', location.origin);
 function App() {
-  const [view, setView] = useState(demo.controller.getSnapshot());
+  const [view, setView] = useState<ComarkDocument>({ nodes: [], meta: {}, frontmatter: {} });
   const controls = useRef<HTMLDivElement>(null);
-  const output = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const unsubscribe = demo.controller.subscribe(setView);
-    const disposeControls = mountControls(controls.current!, demo.controller, demo.fixture);
-    const disposePreviews = initializePreviews(output.current!);
-    void demo.controller.update(fixtureSource, { ended: true });
+    const fixture = createFixture();
+    const options = {
+      allowedUrls: ['https://example.test/*'],
+      fetch: fixture.fetch,
+      mediaUrl: localMedia,
+      limits: { deadlineMs: 10_000 },
+    };
+    let plugin = linkPreview(options);
+    let revision = 0;
+    const disposeControls = mountControls(controls.current!, fixture, async (source, reset) => {
+      const current = ++revision;
+      if (reset) plugin = linkPreview(options);
+      const document = await parseMarkdown(source, { plugins: [plugin] });
+      if (current === revision) setView(document);
+    });
     return () => {
-      disposePreviews();
+      revision++;
       disposeControls();
-      unsubscribe();
-      demo.controller.dispose();
     };
   }, []);
   return (
     <>
       <div ref={controls} />
-      <section data-preview-output ref={output}>
-        <MarkdownDocument value={view.value} />
+      <section data-preview-output>
+        <MarkdownDocument value={view} />
       </section>
     </>
   );

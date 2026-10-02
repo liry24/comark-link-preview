@@ -1,13 +1,6 @@
 import { defineConfig } from 'tsdown';
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    fetch: 'src/fetch.ts',
-    browser: 'src/browser.ts',
-    html: 'src/html.ts',
-    ansi: 'src/ansi.ts',
-    workers: 'src/workers.ts',
-  },
+  entry: { index: 'src/index.ts' },
   format: ['esm'],
   platform: 'neutral',
   dts: { sourcemap: false },

@@ -15,7 +15,7 @@ const commands = [
   {
     name: 'Library watch',
     cwd: root,
-    args: [bin('tsdown/dist/run.mjs'), '--watch'],
+    args: [bin('tsdown/dist/run.mjs'), '--watch', '--no-clean'],
     url: 'rebuilds packaged entries on source changes',
   },
   {

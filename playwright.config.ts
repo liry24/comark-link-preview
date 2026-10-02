@@ -5,9 +5,13 @@ export default defineConfig({
   globalTimeout: 10 * 60_000,
   expect: { timeout: 15_000 },
   workers: 1,
+  reporter: 'line',
   use: {
     browserName: 'chromium',
     headless: true,
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
+      : {}),
     viewport: { width: 900, height: 900 },
     trace: 'retain-on-failure',
   },

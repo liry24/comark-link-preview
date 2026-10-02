@@ -101,6 +101,7 @@ export function initializePreviews(root: HTMLElement): () => void {
       const target = event.target instanceof Element ? event.target.closest('[data-clp-toggle]') : null;
       const card = owner(target);
       if (card) {
+        event.preventDefault();
         const wasOpen = pointerCard === card ? pointerWasOpen : panelFor(card)?.matches(':popover-open');
         if (wasOpen) close(card, true);
         else show(card, true);
@@ -165,4 +166,11 @@ export function initializePreviews(root: HTMLElement): () => void {
     for (const panel of open) if (panel.matches(':popover-open')) panel.hidePopover();
     open.clear();
   };
+}
+
+let installed: Document | undefined;
+export function ensureBrowserInteractions(): void {
+  if (typeof document === 'undefined' || installed === document) return;
+  installed = document;
+  initializePreviews(document.documentElement);
 }

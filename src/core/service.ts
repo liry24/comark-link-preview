@@ -32,6 +32,7 @@ interface Job {
   controller: AbortController;
   snapshot: PreviewSnapshot;
   started: boolean;
+  timer?: ReturnType<typeof setTimeout>;
 }
 /** Instance-local deduplication and concurrency. Sharing a service is always explicit. */
 export function createPreviewService(options: ServiceOptions): PreviewService {
@@ -66,12 +67,6 @@ export function createPreviewService(options: ServiceOptions): PreviewService {
   async function run(job: Job) {
     active++;
     job.started = true;
-    const timer = setTimeout(() => {
-      const error = new PreviewError('timeout');
-      log(error);
-      emit(job, { state: 'failed', metadata: {} });
-      job.controller.abort(error);
-    }, deadlineMs);
     try {
       const initialUrl = new URL(job.identity);
       await withAbort(
@@ -142,7 +137,7 @@ export function createPreviewService(options: ServiceOptions): PreviewService {
         emit(job, { state: 'failed', metadata: {} });
       }
     } finally {
-      clearTimeout(timer);
+      clearTimeout(job.timer);
       active--;
       if (!job.listeners.size && jobs.get(job.identity) === job) jobs.delete(job.identity);
       pump();
@@ -169,6 +164,13 @@ export function createPreviewService(options: ServiceOptions): PreviewService {
           started: false,
         };
         jobs.set(identity, job);
+        const queued = job;
+        job.timer = setTimeout(() => {
+          const error = new PreviewError('timeout');
+          log(error);
+          emit(queued, { state: 'failed', metadata: {} });
+          queued.controller.abort(error);
+        }, deadlineMs);
       }
       const entry: Listener = { emit: listener, ...(consumeBytes ? { consumeBytes } : {}) };
       job.listeners.add(entry);
@@ -181,6 +183,7 @@ export function createPreviewService(options: ServiceOptions): PreviewService {
           removed = true;
           job.listeners.delete(entry);
           if (!job.listeners.size) {
+            clearTimeout(job.timer);
             job.controller.abort();
             if (jobs.get(identity) === job) jobs.delete(identity);
           }
@@ -191,6 +194,7 @@ export function createPreviewService(options: ServiceOptions): PreviewService {
       disposed = true;
       for (const job of jobs.values()) {
         job.listeners.clear();
+        clearTimeout(job.timer);
         job.controller.abort();
       }
       jobs.clear();
