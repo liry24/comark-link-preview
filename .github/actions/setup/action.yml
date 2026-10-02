@@ -1,0 +1,17 @@
+name: Setup
+description: Install the pinned package manager and Node runtime
+inputs:
+  node:
+    description: Node runtime
+    default: '24.19.0'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version: ${{ inputs.node }}
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      with:
+        bun-version-file: package.json
+    - shell: bash
+      run: bun ci --ignore-scripts

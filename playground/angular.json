@@ -1,0 +1,49 @@
+{
+  "$schema": "../node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "analytics": false
+  },
+  "projects": {
+    "preview": {
+      "projectType": "application",
+      "root": "angular",
+      "sourceRoot": "angular/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "angular/src/main.ts",
+            "index": "angular/src/index.html",
+            "tsConfig": "angular/tsconfig.app.json",
+            "outputPath": "../.playground-dist/angular",
+            "sourceMap": false,
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "shared/public",
+                "output": "/"
+              }
+            ],
+            "styles": ["shared/page.css"]
+          },
+          "configurations": {
+            "development": {
+              "optimization": false,
+              "extractLicenses": false
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "preview:build:development",
+            "host": "127.0.0.1",
+            "port": 4200
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+name: Prepare version proposal
+on: workflow_dispatch
+permissions: {}
+jobs:
+  proposal:
+    runs-on: ubuntu-latest
+    permissions: { contents: write, pull-requests: write }
+    steps:
+      - uses: danielroe/uppt/pr@65a86313a63b10a6793de6c4ff8614b18e127a71
+        with:
+          packages: .
+          token: ${{ secrets.GITHUB_TOKEN }}
+# Deliberately no tag, release, npm publish, OIDC grant, or automatic stable publication.

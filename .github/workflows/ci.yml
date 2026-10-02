@@ -1,0 +1,95 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false }
+      - uses: ./.github/actions/setup
+      - run: bun check
+      - run: bun run test:workers
+      - run: bun run pack:check
+      - run: node node_modules/publint/src/cli.js --pack npm
+      - run: node node_modules/@arethetypeswrong/cli/dist/index.js artifacts/comark-link-preview-0.0.0.tgz --profile esm-only --exclude-entrypoints ./style.css
+      - run: node scripts/measure.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: artifacts/
+  consumers:
+    needs: quality
+    runs-on: ${{ matrix.os }}
+    permissions: { contents: read }
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, manager: npm, node: '24.0.0', comark: '0.7.0' }
+          - { os: ubuntu-latest, manager: pnpm, node: '24.19.0', comark: 'latest' }
+          - { os: windows-latest, manager: bun, node: '24.19.0', comark: '0.7.0' }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false }
+      - uses: ./.github/actions/setup
+        with: { node: '${{ matrix.node }}' }
+      - uses: actions/download-artifact@v4
+        with: { name: package, path: artifacts }
+      - if: matrix.manager == 'pnpm'
+        run: npm install --global pnpm@10
+      - run: node scripts/consumer.mjs
+        env:
+          CLP_PACKAGE_MANAGER: ${{ matrix.manager }}
+          CLP_COMARK_VERSION: ${{ matrix.comark }}
+  browsers:
+    timeout-minutes: 15
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false }
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: package, path: artifacts }
+      - run: tar -xzf artifacts/comark-link-preview-0.0.0.tgz --strip-components=1 package/dist
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - run: bun run test:browser
+        env: { CLP_USE_PACKED: '1', NUXT_TELEMETRY_DISABLED: '1', DEBUG: 'pw:browser,pw:webserver' }
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: browser-failures, path: test-results/ }
+  examples:
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { persist-credentials: false }
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with: { name: package, path: artifacts }
+      - run: tar -xzf artifacts/comark-link-preview-0.0.0.tgz --strip-components=1 package/dist
+      - run: bun run build:playground:web
+      - run: bun run build:playground:angular
+      - run: bun run build:playground:nuxt
+        env: { NUXT_TELEMETRY_DISABLED: '1' }
+      - run: node playground/cli/main.ts > artifacts/cli.txt
+      - run: node scripts/check-cli.mjs artifacts/cli.txt
+  ci-ok:
+    if: always()
+    needs: [quality, consumers, browsers, examples]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every product gate, including non-skipped browser tests
+        env: { NEEDS: '${{ toJSON(needs) }}' }
+        run: jq -e 'all(.[]; .result == "success")' <<< "$NEEDS"
