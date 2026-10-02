@@ -145,6 +145,7 @@ export function initializePreviews(root: HTMLElement): () => void {
     signal: events.signal,
   });
   const observer = new MutationObserver((records) => {
+    for (const panel of open) if (!root.contains(panel)) open.delete(panel);
     for (const record of records) {
       if (record.type === 'attributes' && record.target instanceof HTMLImageElement) refresh(record.target);
       for (const node of record.addedNodes)

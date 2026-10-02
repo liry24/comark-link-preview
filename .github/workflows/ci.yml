@@ -50,6 +50,7 @@ jobs:
           CLP_PACKAGE_MANAGER: ${{ matrix.manager }}
           CLP_COMARK_VERSION: ${{ matrix.comark }}
   browsers:
+    timeout-minutes: 15
     needs: quality
     runs-on: ubuntu-latest
     permissions: { contents: read }

@@ -37,6 +37,7 @@ for (const renderer of ['html', 'react', 'vue', 'svelte', 'angular', 'nuxt']) {
     await page.locator('[data-restart]').click();
     const card = output.locator('.clp-inline').first();
     await expect(card).toBeVisible();
+    await expect(card.locator('a.clp-link')).toBeVisible();
     await page.locator('[data-pause-input]').click();
     const length = (await page.locator('[data-source]').inputValue()).length;
     await expect(card).toHaveAttribute('aria-busy', 'true');
