@@ -1,0 +1,44 @@
+@import 'comark-link-preview/style.css';
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body {
+  margin: 1.5rem auto;
+  max-width: 58rem;
+  padding: 0 1rem;
+  line-height: 1.55;
+}
+nav {
+  margin-bottom: 1rem;
+}
+fieldset {
+  margin-block: 1rem;
+  padding: 1rem;
+}
+label {
+  display: block;
+  margin-block: 0.45rem;
+}
+input[type='number'] {
+  width: 5rem;
+}
+textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  font: 0.85rem/1.4 monospace;
+}
+button {
+  margin-block: 0.25rem;
+  font: inherit;
+}
+output,
+pre {
+  display: block;
+  font: 0.8rem/1.5 monospace;
+  white-space: pre-wrap;
+}
+[data-preview-output] {
+  overflow-wrap: anywhere;
+}
