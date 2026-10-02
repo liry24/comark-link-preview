@@ -76,7 +76,7 @@ for (const renderer of ['html', 'react', 'vue', 'svelte', 'angular', 'nuxt']) {
       .toBeGreaterThan(0);
     await expect(button).toBeFocused();
     await page.keyboard.press('Escape');
-    await page.locator('h1').click();
+    await page.locator('h1').first().click();
     await card.locator('a.clp-link').hover();
     await expect(card.locator('.clp-panel')).toBeVisible();
     await card.locator('.clp-panel').hover();

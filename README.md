@@ -25,7 +25,7 @@ See :inline-preview{href="https://example.com/article" title="My title"}.
 ::
 ```
 
-Metadata is fetched before parsing completes. An author title takes priority; failures become ordinary links. Ordinary Markdown links are unchanged. Keep your original Markdown for editing and saving.
+Metadata is fetched from UTF-8 HTML before parsing completes. An author title takes priority; failures become ordinary links. Ordinary Markdown links are unchanged. Keep your original Markdown for editing and saving.
 
 ## Options
 
@@ -42,7 +42,7 @@ Metadata is fetched before parsing completes. An author title takes priority; fa
 
 ## Runtime notes
 
-Requires Node 24+ or a compatible Web Fetch/URLPattern runtime. Browser fetches are subject to CORS; server-side parsing is usually appropriate for external websites. Cloudflare Workers should enable `global_fetch_strictly_public` and use public global fetch rather than privileged bindings.
+Requires Node 24+ or a compatible Web Fetch/URLPattern/Web Crypto runtime. Browser fetches are subject to CORS; server-side parsing is usually appropriate for external websites. Cloudflare Workers should enable `global_fetch_strictly_public` and use public global fetch rather than privileged bindings.
 
 URL authorization is not complete SSRF protection. Applications accepting untrusted URLs must enforce their own network/egress policy. Comark may auto-close partial streamed input; any parsed URL can be fetched through your policy. Parse only complete input if early requests are unacceptable. Incremental parsers can retain previously rendered cards; recreate the parser when changing authorization policy.
 

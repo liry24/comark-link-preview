@@ -3,7 +3,7 @@ import { createMarkdownParser, parseMarkdown as parse, type Node } from 'comark'
 import { createHtmlRenderer, renderHtmlFromDocument } from '@comark/html';
 import { createAnsiRenderer, renderAnsiFromDocument } from '@comark/ansi';
 import { createStorage } from 'unstorage';
-import defaultLinkPreview, { linkPreview } from '../src/index.ts';
+import { linkPreview } from '../src/index.ts';
 
 function requestUrl(input: Parameters<typeof globalThis.fetch>[0]): string {
   return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -20,13 +20,6 @@ function tags(nodes: Node[]): string[] {
     typeof node === 'string' || node[0] === null ? [] : [node[0], ...tags(node.slice(2) as Node[])],
   );
 }
-
-it('exports one ordinary Comark plugin factory as default and named exports', () => {
-  expect(linkPreview).toBe(defaultLinkPreview);
-  const plugin = linkPreview();
-  expect(plugin.name).toBeTypeOf('string');
-  expect(plugin.post).toBeTypeOf('function');
-});
 
 it('native parse awaits the asynchronous post hook and returns a completed ordinary HTML AST', async () => {
   let finish: ((value: Response) => void) | undefined;

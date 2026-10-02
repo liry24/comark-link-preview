@@ -20,6 +20,10 @@ export function initializePreviews(root: HTMLElement): () => void {
     const panel = panelFor(card);
     if (!panel || panel.matches(':popover-open')) return;
     if (explicit) dismissed.delete(card);
+    for (const previous of [...open]) {
+      const previousCard = owner(previous);
+      if (previousCard && previous !== panel) close(previousCard);
+    }
     panel.showPopover();
     const bounds = card.getBoundingClientRect();
     panel.style.left = Math.max(8, Math.min(bounds.left, innerWidth - panel.offsetWidth - 8)) + 'px';
