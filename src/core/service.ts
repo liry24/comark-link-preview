@@ -133,7 +133,8 @@ export function createPreviewService(options: ServiceOptions): PreviewService {
       );
       job.controller.signal.throwIfAborted();
       if (!validMetadata(metadata)) throw new PreviewError('parse');
-      await cache.set(job.identity, metadata, redirects);
+      // A remote driver may never settle. Persistence must not own the render or concurrency slot.
+      void cache.set(job.identity, metadata, redirects);
       emit(job, { state: 'ready', metadata });
     } catch (error) {
       if (!job.controller.signal.aborted) {

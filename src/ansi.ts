@@ -36,32 +36,37 @@ export function connectPreviewAnsi(
   controller: PreviewController,
   output: AnsiOutput,
   options?: AnsiRendererOptions,
-): () => void {
+): { dispose(): void; flush(): Promise<void> } {
   let disposed = false;
   let sequence = 0;
   let lineCount = 0;
   let printedFinal = false;
+  let pending = Promise.resolve();
   const unsubscribe = controller.subscribe((view) => {
     const current = ++sequence;
     const complete =
       view.ended && view.targets.every((target) => !target.confirmed || target.snapshot.state !== 'pending');
     if (!output.isTTY && (!complete || printedFinal)) return;
-    void renderPreviewAnsi(view, { ...options, colors: !!output.isTTY && options?.colors !== false }).then(
-      (text) => {
-        if (disposed || current !== sequence) return;
-        if (output.isTTY) {
-          const rewind = lineCount ? `\u001b[${lineCount}F\u001b[0J` : '';
-          output.write(rewind + text + '\n');
-          lineCount = text.split('\n').length;
-        } else {
-          output.write(text + '\n');
-          printedFinal = true;
-        }
-      },
-    );
+    pending = renderPreviewAnsi(view, {
+      ...options,
+      colors: !!output.isTTY && options?.colors !== false,
+    }).then((text) => {
+      if (disposed || current !== sequence) return;
+      if (output.isTTY) {
+        const rewind = lineCount ? `\u001b[${lineCount}F\u001b[0J` : '';
+        output.write(rewind + text + '\n');
+        lineCount = text.split('\n').length;
+      } else {
+        output.write(text + '\n');
+        printedFinal = true;
+      }
+    });
   });
-  return () => {
-    disposed = true;
-    unsubscribe();
+  return {
+    dispose() {
+      disposed = true;
+      unsubscribe();
+    },
+    flush: () => pending,
   };
 }

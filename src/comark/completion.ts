@@ -30,10 +30,25 @@ export function attributesEnd(source: string, start: number): number | undefined
   return undefined;
 }
 export function isInputConfirmed(source: string, start: number, ended: boolean): boolean {
-  const head = /^(:+)(inline-preview|preview-card)(?=[{\s]|$)/u.exec(source.slice(start));
+  const head = /^(:+)[ \t]*(inline-preview|preview-card)(?=[{[\s]|$)/u.exec(source.slice(start));
   if (!head) return false;
   let pos = start + head[0].length;
   while (source[pos] === ' ' || source[pos] === '\t') pos++;
+  if (source[pos] === '[') {
+    let depth = 1;
+    pos++;
+    while (pos < source.length && depth) {
+      if (source[pos] === '\\') {
+        pos += 2;
+        continue;
+      }
+      if (source[pos] === '[') depth++;
+      if (source[pos] === ']') depth--;
+      pos++;
+    }
+    if (depth) return false;
+    while (source[pos] === ' ' || source[pos] === '\t') pos++;
+  }
   if (source[pos] === '{') {
     const end = attributesEnd(source, pos);
     if (end === undefined) return false;

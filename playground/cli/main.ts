@@ -22,9 +22,8 @@ try {
         });
     });
   });
-  // Allow the asynchronous Comark renderer to finish its last write.
-  await sleep(30, signal);
+  await disconnect.flush();
 } finally {
-  disconnect();
+  disconnect.dispose();
   controller.dispose();
 }

@@ -46,7 +46,7 @@ it('ANSI handles previews as safe text; noninteractive output waits and prints o
   expect(writes[0]).toContain('Author');
   expect(writes[0]).toContain('https://example.com');
   expect(await renderPreviewAnsi(c.getSnapshot())).not.toContain('<');
-  disconnect();
+  disconnect.dispose();
   c.dispose();
 });
 it('Workers uses fresh public fetch options, manual redirects and no caller headers', async () => {

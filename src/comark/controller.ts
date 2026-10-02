@@ -215,7 +215,7 @@ export function createPreviewController(options: ControllerOptions): PreviewCont
           node[1][':href'] === undefined && isInputConfirmed(source, start, ended) && href !== undefined;
         const prior = previous.get(id);
         const snapshot =
-          confirmed && href && !safeUrl(href)
+          (ended && !confirmed) || (confirmed && href && !safeUrl(href))
             ? { state: 'failed' as const, metadata: {} }
             : prior && prior.href === href && prior.confirmed === confirmed
               ? prior.snapshot
