@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.nuxt/
+.output/
+.angular/
+playwright-report/
+test-results/
+
+.playground-dist/
+
+artifacts/

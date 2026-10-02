@@ -1,0 +1,139 @@
+.clp {
+  --clp-border: #d2d5d9;
+  --clp-background: #fff;
+  --clp-color: #24272b;
+  --clp-muted: #626970;
+  color: var(--clp-color);
+  font: inherit;
+}
+.clp a {
+  color: inherit;
+  text-decoration: none;
+}
+.clp a:hover {
+  text-decoration: underline;
+}
+.clp-inline {
+  display: inline;
+  position: relative;
+}
+.clp-link,
+.clp-heading {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+.clp-link {
+  max-width: 100%;
+}
+.clp-title {
+  overflow-wrap: anywhere;
+}
+.clp-favicon {
+  display: inline-grid;
+  width: 1em;
+  height: 1em;
+  min-width: 1em;
+  vertical-align: baseline;
+}
+.clp-favicon > * {
+  grid-area: 1 / 1;
+  width: 1em;
+  height: 1em;
+}
+.clp-icon {
+  line-height: 1;
+  text-align: center;
+}
+.clp-favicon:has(img[data-clp-loaded='true']) .clp-icon {
+  visibility: hidden;
+}
+.clp img[data-clp-media]:not([data-clp-loaded='true']) {
+  visibility: hidden;
+}
+.clp-toggle {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0.1em 0.3em;
+  cursor: pointer;
+}
+.clp-block {
+  display: block;
+  margin-block: 0.75em;
+}
+.clp-card {
+  box-sizing: border-box;
+  display: flex;
+  gap: 1em;
+  border: 1px solid var(--clp-border);
+  border-radius: 0.5em;
+  padding: 0.85em;
+  background: var(--clp-background);
+  color: var(--clp-color);
+  max-width: 100%;
+}
+.clp-summary {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.45em;
+}
+.clp-description,
+.clp-site {
+  color: var(--clp-muted);
+  overflow-wrap: anywhere;
+}
+.clp-description {
+  font-size: 0.9em;
+}
+.clp-site {
+  font-size: 0.8em;
+}
+.clp-image {
+  width: min(30%, 9em);
+  max-height: 8em;
+  object-fit: cover;
+  border-radius: 0.25em;
+}
+.clp-image:not([data-clp-loaded='true']) {
+  display: none;
+}
+.clp-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(24em, calc(100vw - 1em));
+  z-index: 1;
+  font: inherit;
+}
+.clp-panel:not(:popover-open) {
+  display: none;
+}
+.clp [aria-busy='true'] .clp-title {
+  min-width: 5em;
+}
+.clp a:focus-visible,
+.clp button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 0.15em;
+}
+@media (prefers-color-scheme: dark) {
+  .clp {
+    --clp-border: #50555b;
+    --clp-background: #202328;
+    --clp-color: #f0f2f4;
+    --clp-muted: #b4bdc7;
+  }
+}
+@media (max-width: 360px) {
+  .clp-card {
+    flex-direction: column;
+  }
+  .clp-image {
+    width: 100%;
+  }
+}
