@@ -45,7 +45,8 @@
     "pack:check": "node scripts/pack.mjs",
     "test:consumer": "node scripts/consumer.mjs",
     "test:package": "node scripts/package-check.mjs",
-    "test:workers": "node scripts/workers.mjs"
+    "test:workers": "node scripts/workers.mjs",
+    "bundle:size": "bun run build && bun scripts/measure-bundles.mjs --package-root ."
   },
   "dependencies": {
     "htmlparser2": "^12.0.0",
